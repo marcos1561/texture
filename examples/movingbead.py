@@ -6,9 +6,9 @@ Created on Tue Nov 12 14:48:39 2019
 @author: nklongvessa
 """
 
-from texture.grid import RegularGrid
-from texture.texture import bin_texture, bin_changes, bonds_appeared_disapeared, C2B
-from texture.display import display2Dcount, display_matrices, display_pos_edges
+from texture.grids import RegularGrid
+from texture._texture import bin_texture, bin_changes, bonds_appeared_disapeared, C2B
+from texture.display import draw_count_2D, draw_matrices, display_pos_edges
 import os
 import trackpy as tp
 import  numpy as np
@@ -126,22 +126,22 @@ for ind, act in enumerate(select_act):
     fig, axs = plt.subplots(3,3, figsize=(10,10),sharex=True, sharey=True, subplot_kw={'aspect':'equal'})
     fig.canvas.set_window_title('Act {}'.format(act))
     
-    display_matrices(axs[0,0], grid, M * mask[...,None])
+    draw_matrices(axs[0,0], grid, M * mask[...,None])
     axs[0,0].title.set_text('Texture M')
     
-    display_matrices(axs[0,1], grid, B * mask[...,None])
+    draw_matrices(axs[0,1], grid, B * mask[...,None])
     axs[0,1].title.set_text('Geometrical change B')
     
-    display_matrices(axs[0,2], grid, T * mask[...,None])
+    draw_matrices(axs[0,2], grid, T * mask[...,None])
     axs[0,2].title.set_text('Topological change T')
     
-    ima = display2Dcount(axs[1,0], grid, nd)
+    ima = draw_count_2D(axs[1,0], grid, nd)
     axs[1,0].title.set_text('Disappeared bonds')
     
-    display2Dcount(axs[1,1], grid, na)
+    draw_count_2D(axs[1,1], grid, na)
     axs[1,1].title.set_text('Appeared bonds')   
     
-    ima2 = display2Dcount(axs[1,2], grid, nc)
+    ima2 = draw_count_2D(axs[1,2], grid, nc)
     fig.colorbar(ima2, ax=axs[1,2:3], location='bottom')
     fig.colorbar(ima, ax=axs[1, :2], shrink=0.6, location='bottom')
     

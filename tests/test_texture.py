@@ -1,7 +1,7 @@
-from texture.texture import *
+from texture._texture import *
 from numpy.testing import *
 from scipy.spatial import cKDTree as KDTree
-from texture.grid import RegularGrid
+from texture.grids import RegularGrid
 
 def test_appeared_disappeared():
     pairs0 = np.array([[0,1], [2,10], [10,3]])
@@ -292,11 +292,11 @@ def test_2D_3branches():
 
 def test_tri2square():
     assert_array_equal(
-        tri2square(np.array([1,2,3])),
+        square_from_triangular(np.array([1,2,3])),
         np.array([[1,2], [2,3]])
     )
     assert_array_equal(
-        tri2square(np.array([1,2,3,4,5,6])),
+        square_from_triangular(np.array([1,2,3,4,5,6])),
         np.array([
             [1,2,3], 
             [2,4,5], 

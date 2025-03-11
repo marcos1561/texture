@@ -6,9 +6,9 @@ Created on Tue Nov 12 14:48:39 2019
 @author: nklongvessa
 """
 
-from texture.grid import RegularGrid
-from texture.texture import bin_texture, bin_changes, bonds_appeared_disapeared, C2B
-from texture.display import display2Dcount, display_matrices, display_pos_edges
+from texture.grids import RegularGrid
+from texture._texture import bin_texture, bin_changes, bonds_appeared_disapeared, C2B
+from texture.display import draw_count_2D, draw_matrices, display_pos_edges
 import os
 import trackpy as tp
 import  numpy as np
@@ -100,12 +100,12 @@ nc = 2 * Nc_tot * Ntot_nz
 
 # display things!
 fig, axs = plt.subplots(3,3, sharex=True, sharey=True, subplot_kw={'aspect':'equal'})
-display_matrices(axs[0,0], grid, M)
-display_matrices(axs[0,1], grid, B)
-display_matrices(axs[0,2], grid, T)
-ima = display2Dcount(axs[1,0], grid, nd)
-display2Dcount(axs[1,1], grid, na)
-fig.colorbar(display2Dcount(axs[1,2], grid, nc), ax=axs[1, 2], location='bottom')
+draw_matrices(axs[0,0], grid, M)
+draw_matrices(axs[0,1], grid, B)
+draw_matrices(axs[0,2], grid, T)
+ima = draw_count_2D(axs[1,0], grid, nd)
+draw_count_2D(axs[1,1], grid, na)
+fig.colorbar(draw_count_2D(axs[1,2], grid, nc), ax=axs[1, 2], location='bottom')
 fig.colorbar(ima, ax=axs[1, :2], shrink=0.6, location='bottom')
 
 V, Omega, P = statistical_relative_deformations(M, C, T)

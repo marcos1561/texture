@@ -1,7 +1,7 @@
 import numpy as np
 from numba import jit
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def digitize_regular(xs, offset, step, nstep):
     """snap coordinates to a regular grid, assigning to it the index of the edge immediately larger to it.
             Coordinates that are below the offset will have index 0.
@@ -40,7 +40,7 @@ count : 1D ndarray of ints
         ans[i] = ans[i] + 1
     return ans
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def bin_weight_count(x, weights, minlength=0):
     """Count number of occurrences of each value in array of non-negative ints. Also sums all weights for each value. If a value n is found at position i, count[n] += 1 and sumw[n] += weight[i].
 
@@ -78,30 +78,32 @@ count : 1D ndarray of ints
     return sumw, count
     
 def bin_weight_countdd(ipos, shape, weights=None):
-    """Count number of occurrences of each D-uple of coordinates in array of non-negative integer coordinates. Also sums all weights for each value. If coordinate number p has indices (i,j,k), count[i,j,k] += 1 and sumw[i,j,k] += weight[p].
+    """
+    Count number of occurrences of each D-uple of coordinates in array of non-negative integer coordinates. 
+    Also sums all weights for each value. If coordinate number p has indices (i,j,k), count[i,j,k] += 1 and sumw[i,j,k] += weight[p].
 
-In any dimension d, no coordinate should be larger or equal than shape[d] or lower than 0. 
+    In any dimension d, no coordinate should be larger or equal than shape[d] or lower than 0. 
 
-Parameters
-----------
-ipos : array_like, shape (P, D), positive ints
-    Discretized coordinates on the grid.
-    
-shape : tuple of int of size D
-    The multidimentional shape of the output array.
-    
-weights : array_like, shape (P, F), optional
-    Weights, array broadcastable with ipos (e.g. first dimension of weights is len(ipos)).
+    Parameters
+    ----------
+        ipos : array_like, shape (P, D), positive ints
+            Discretized coordinates on the grid.
+            
+        shape : tuple of int of size D
+            The multidimentional shape of the output array.
+            
+        weights : array_like, shape (P, F), optional
+            Weights, array broadcastable with ipos (e.g. first dimension of weights is len(ipos)).
 
-Returns
-----------
-sumw : ndarray of the same type as weights
-    The sum of the weights in each bin. The shape of out is equal to `(*shape, *wheights.shape[1:])`. If weights is None sumw is not returned.
-    
-count : 1D ndarray of ints
-    The number of elements of ipos in each bin. The length of count is `shape`.
-
-"""
+    Returns
+    ----------
+        sumw : ndarray of the same type as weights
+            The sum of the weights in each bin. The shape of out is equal to `(*shape, *wheights.shape[1:])`. 
+            If weights is None sumw is not returned.
+            
+        count : 1D ndarray of ints
+            The number of elements of ipos in each bin. The length of count is `shape`.
+    """
     assert ipos.shape[1] == len(shape)
     # Case of no coordinates inputed
     if len(ipos) == 0:
@@ -131,11 +133,14 @@ class Grid:
         ----------
         bins : A sequence of arrays describing the monotonically increasing bin
               edges along each dimension."""
+        self.offsets = []
         for d, e in enumerate(edges):
+            self.offsets.append(e[0])
             if np.any(e[:-1] > e[1:]):
                 raise ValueError('`bins[{}]` must be monotonically increasing'.format(d))
         self.edges = [np.array(e) for e in edges]
-        
+        self.offsets = np.array(self.offsets)
+
     def save(self, fname):
         """Save to a file in a human readable format"""
         with open(fname, 'w') as f:
@@ -166,7 +171,12 @@ class Grid:
         """Obtain the coordinates of cell centers"""
         if self.ndim != 2:
             raise NotImplemented("mesh is implemented only in 2D")
-        x,y = np.transpose([0.5*(e[1:]+e[:-1]) for e in self.edges])
+        # x,y = np.transpose([0.5*(e[1:]+e[:-1]) for e in self.edges])
+        
+        x = 0.5 * (self.edges[0][1:]+self.edges[0][:-1])
+        y = 0.5 * (self.edges[1][1:]+self.edges[1][:-1])
+        # x,y = np.array([0.5*(e[1:]+e[:-1]) for e in self.edges])
+        
         #transpose coordinates to be consistent with input
         Y, X = np.meshgrid(y, x)
         return np.column_stack((X.ravel(), Y.ravel()))
@@ -425,6 +435,38 @@ class PolarGrid(Grid):
             ir[ir==0] = 1
         return np.column_stack((ir, itheta))
         
+import yaml
+class GridWrapper(Grid):
+    def __init__(self, length, height, num_cols, num_rows):
+        '''
+        Wrapper for Grid to create a regular grid with dimensions
+        `length`x`height` (centered in the origin) with `num_rows` rows
+        and `num_cols` columns.
+        '''
+        self.configs = {
+            "length": length, "height": height,
+            "num_cols": num_cols, "num_rows": num_rows, 
+        }
+        self.length = length
+        self.height = height
+
+        grid_shape = (num_rows, num_cols)
+        edges = [
+            np.linspace(-length/2, length/2, grid_shape[1]+1),
+            np.linspace(-height/2, height/2, grid_shape[0]+1),
+        ]
+        super().__init__(edges)
+
+    def save_configs(self, path):
+        with open(path, "w") as f:
+            yaml.dump(self.configs, f)
+
+    @classmethod
+    def load(cls, path):
+        with open(path, "r") as f:
+            configs = yaml.unsafe_load(f)
+        return cls(**configs)
+
 
 def load(fname):
     """Load a grid from a file"""

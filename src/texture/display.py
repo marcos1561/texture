@@ -1,24 +1,50 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.collections import EllipseCollection, LineCollection
-from .texture import tri2square
 
-def display_pos_edges(ax, pos, pairs, kw_pos = {'marker': 'o', 'c': 'k'}, kw_edges = {'color': 'r'}):
-    """Display on a matplotlib axis positions and bonds between them"""
-    lc = LineCollection(pos[pairs], **kw_edges)
+from texture import square_from_triangular
+from texture import grids, errors
+
+def draw_links(ax: Axes, points, links, **kwargs):
+    kwargs_default = {'color': 'r'}
+    kwargs = {**kwargs_default, **kwargs}
+
+    lc = LineCollection(points[links], **kwargs)
     ax.add_collection(lc)
-    ax.scatter(*pos.T, **kw_pos)
+
+    return lc
+
+def draw_points(ax: Axes, points, **kwargs):
+    kwargs_default = {'marker': 'o', 'c': 'k'}
+    kwargs = {**kwargs_default, **kwargs}
     
-def display2Dcount(ax, grid, count, **kw_imshow):
-    """Display in a matplotlib axis the result of grid.count for a 2D grid. Valid for RegularGrid only"""
-    return ax.imshow(
-        np.rot90(count), 
-        extent=(
-            grid.offsets[0], grid.offsets[0]+grid.steps[0]*(grid.nsteps[0]-1), 
-            grid.offsets[1], grid.offsets[1]+grid.steps[1]*(grid.nsteps[1]-1)
-        ),
-        **kw_imshow,
-    )
+    return ax.scatter(*points.T, **kwargs)
+
+def draw_points_links(ax: Axes, points, links, points_kw=None, links_kw=None):
+    if points_kw is None:
+        points_kw = {}
+    if links_kw is None:
+        links_kw = {}
+
+    l = draw_links(ax, points, links, **links_kw)
+    
+    if "zorder" not in points_kw.keys():
+        points_kw["zorder"] = l.get_zorder() + 1
+    p = draw_points(ax, points, **points_kw)
+
+    return l, p
+
+def draw_count_2D(ax: Axes, grid: grids.RetangularGrid, count, colormesh_kw=None, colorbar_kw=None):
+    "Draw count for a 2D grid as color map."
+    if colormesh_kw is None:
+        colormesh_kw = {}
+    if colorbar_kw is None:
+        colorbar_kw = {}
+    
+    p = ax.pcolormesh(*grid.edges, count, shading="flat", **colormesh_kw)
+    cbar = plt.colorbar(p, ax=ax, **colorbar_kw)
+    return p, cbar
 
 def display_scalar(ax, grid, scalar, kw_scatter = {'marker': 'o'}):
     """Display on a matplotlib axis a scalar field defined for each element of a grid. Valid for any type of grid"""
@@ -29,69 +55,144 @@ def display_scalar(ax, grid, scalar, kw_scatter = {'marker': 'o'}):
         sc = scalar
     return ax.scatter(XY[:,0], XY[:,1], c = sc, **kw_scatter)
     
-def display_matrices(ax, grid, texture, scale = None, col=None):
-    """Display on a matplotlib axis an ellipse representing a symmetric matrix at each grid element. Each axis of the ellipse corresponds to an eigenvalue and is oriented along its eigenvector. An axis corresponding to a positive eigenvalue is drawn. A 'coffee bean' has a negative eigenvalue smaller in absolute value than its positive eigenvalue. A 'capsule' has a negative eigenvalue larger in absolute value than its positive eigenvalue. A circle is when the two eigenvalues are equal in absolute value."""
-    XY = grid.mesh()
-    mask = grid.mask()
-    #convert the texture back to an array of matrices
-    mat = tri2square(texture)
-    #compute egenvalues and eigenvectors of texture for each cell of the grid
-    evalues, evectors = np.linalg.eigh(mat)
-    #width and height are the larger and smaller eigenvalues respectively
-    ww = evalues[...,1][mask]
-    hh = evalues[...,0][mask]
-    #angle is given by the angle of the larger eigenvector
-    aa = np.rad2deg(np.arctan2(evectors[...,1,1], evectors[...,0,1]))[mask]
-    #sum of the eigenvalues (trace of the matrix)
-    trace = ww+hh#np.where(np.abs(ww)>np.abs(hh), ww, hh)#ww*hh
-    #color
-    #if col is None:
-    #    if trace.ptp()>0:
-    #        col = plt.cm.viridis((trace.ravel() - trace.min())/trace.ptp())
-    #    else:
-    #        col = plt.cm.viridis(np.ones_like(trace))
+def draw_matrices(ax: Axes, grid: grids.RetangularGrid, matrix: np.ndarray, 
+    scale: float=None, col=None, adjust_lims=True, 
+    ellipse_kwargs=None, line_kwargs=None):
+    '''
+    Draw ellipses representing the symmetric matrix data in `matrix` at each grid element of `grid`. 
     
+    * Each axis of the ellipse corresponds to an eigenvalue and is oriented along its eigenvector. 
+    * Only axis corresponding to positive eigenvalues are drawn.
+
+    Examples:
+
+    * A 'coffee bean' has a negative eigenvalue smaller in absolute value than its positive eigenvalue. 
+    * A 'capsule' has a negative eigenvalue larger in absolute value than its positive eigenvalue. 
+    * A circle is when the two eigenvalues are equal in absolute value.
+    
+    Parameters
+    ----------
+    ax:
+        Axes where things will be drawn
+    
+    grid:
+        Grid where matrix data was calculated.
+
+    matrix:
+        Matrix data (in triangular form) on a grid. Its shape is (L, C, 3), where
+        L is the number of lines in the grid and C the number of columns.
+
+    scale:
+        Scale of lengths, if a line has length l, then it will be drawn with length l*scale. 
+        If None, an automatic scale will be calculated, such that the characteristic ellipse 
+        length at 90 percentile is the same as the grid element characteristic length.
+        If a shape has area A, then its characteristic length is sqrt(A).
+
+    col:
+        Color used to draw ellipses and axis. If none, ellipses will be colored according
+        to the trace of the respective matrix and the axis will be gray.
+
+    adjust_lims:
+        If True, adjust axis limits to grid limits.
+
+    Returns
+    -------
+    ellipse_col, line_col:
+        Ellipses and line matplotlib collections.
+    '''
+    if ellipse_kwargs is None:
+        ellipse_kwargs = {}
+    if line_kwargs is None:
+        line_kwargs = {}
+
+    mask = np.ones(grid.shape, bool)
+
+    # Convert the texture back to an array of matrices
+    matrix = square_from_triangular(matrix)
+    
+    # Compute matrix eigenvalues and eigenvectors for each grid element
+    evalues, evectors = np.linalg.eigh(matrix)
+    
+    # Width and height are the larger and smaller eigenvalues respectively
+    width = evalues[..., 1]
+    height = evalues[..., 0]
+    
+    very_big_values_mask = np.full_like(width, fill_value=False)
+    for evalue_i in [width, height]:
+        evalue_abs = np.abs(evalue_i)
+        evalue_abs_90p = evalue_abs[evalue_abs < np.percentile(evalue_abs, 90)]
+        very_big_values_mask = np.logical_or(very_big_values_mask, evalue_abs > (evalue_abs_90p.mean() + 20 * evalue_abs_90p.std()))
+
+    mask = mask & (~very_big_values_mask)
+
+    width = width[mask] 
+    height = height[mask] 
+    # print("big values count:", very_big_values_mask.sum())
+
+    # Angle is given by the angle of the larger eigenvector
+    angle = np.rad2deg(np.arctan2(evectors[..., 1, 1], evectors[..., 0, 1]))[mask]
+    
+    # Sum of the eigenvalues (trace of the matrix)
+    trace = width + height #np.where(np.abs(ww)>np.abs(hh), ww, hh)#ww*hh
+
+    cell_centers = np.column_stack((
+        grid.meshgrid[0][mask], grid.meshgrid[1][mask]
+    ))
+
+    # Ellipses and lines scale
     if scale is None: 
-        #scale = 1
         ellipse_areas = np.pi * np.abs(np.prod(evalues, axis=-1))
-        rarea = ellipse_areas / grid.areas()
-        scale = np.nanpercentile(np.sqrt(rarea[mask]), 90)
-        if scale == 0:
-            scale = np.nanmax(np.sqrt(rarea[mask]))
-            if scale == 0:
-                raise ValueError("All matrices are null")
-        scale = 1/scale
+        relative_sqrt_area = np.sqrt((ellipse_areas / grid.cell_area)[mask])
+        inv_scale = np.percentile(relative_sqrt_area, 90)
         
-    
-    #show ellipses
-    ec = EllipseCollection(
-        ww*scale, hh*scale, aa, units='xy', offsets=XY,
+        if inv_scale == 0:
+            inv_scale = np.max(relative_sqrt_area)
+            if inv_scale == 0:
+                raise errors.AllMatricesNullError()
+        
+        scale = 1/inv_scale
+        
+    # Show ellipses
+    ellipse_col = EllipseCollection(
+        (np.abs(width)*scale), (np.abs(height)*scale), angle, 
+        units='xy', offsets=cell_centers,
         transOffset=ax.transData, 
         edgecolors=col, facecolors='none',
+        **ellipse_kwargs,
     )
-    #major and minor axes (only for positive eigenvalues)
-    xyps = scale * np.transpose(evectors*np.maximum(0, evalues)[...,None,:], (0,1,3,2))[mask].reshape(2*len(ww),2)*0.5
-    ma = LineCollection(
-        [[-xyp, xyp] for xyp in xyps],
-        offsets=np.repeat(XY, 2, axis=0),
-        color=(0.5,0.5,0.5)
-    )
-    if col is None:
-        if trace.ptp()>0:
-            ec.set_array(trace)
-            ma.set_array(trace[mask.ravel()])
-    else:
-        ec.set_edgecolors(col)
-        ma.set_edgecolors(col)
-    ax.add_collection(ec)
-    ax.add_collection(ma)
-    return ec
 
-def set_ax_lims(ax, grid):
-    """Set x and y limits according to the grid"""
-    ax.set_xlim(*grid.low_high_edges(0))
-    ax.set_ylim(*grid.low_high_edges(1))
+    # Major and minor axes (only for positive eigenvalues)
+    segments = 0.5 * scale * np.transpose(evectors*np.maximum(0, evalues)[..., None, :], (0,1,3,2))[mask]
+    segments = np.repeat(segments, 2, axis=1).reshape(-1, 2, 2)
+    segments[:, 1, :] *= -1
     
+    # xyps = scale * np.transpose(evectors*np.maximum(0, evalues)[..., None, :], (0,1,3,2))[total_mask].reshape(2*len(ww),2)*0.5
+    # segments = np.array([[-xyp, xyp] for xyp in xyps])
+
+    offsets = np.repeat(cell_centers, 2, axis=0)
+    segments += offsets[:, None, :]
+    line_col = LineCollection(
+        segments,
+        color=(0.5,0.5,0.5),
+        **line_kwargs,
+    )
+
+    if col is None:
+        if np.ptp(trace) > 0:
+            ellipse_col.set_array(trace)
+            line_col.set_array(np.repeat(trace, 2))
+    else:
+        ellipse_col.set_edgecolor(col)
+        line_col.set_edgecolor(col)
+
+    if adjust_lims:
+        ax.set_xlim(*grid.dim_extremes[0])
+        ax.set_ylim(*grid.dim_extremes[1])
+
+    ax.add_collection(ellipse_col)
+    ax.add_collection(line_col)
+    return ellipse_col, line_col
+
 def draw_polar_grid(ax,grid, color="b"):
     """Show the limits for the polar grid cells"""
     for r in grid.radii:
