@@ -26,7 +26,7 @@ class Frame:
         self.ax = ax
         self.points_mpl: list[Line2D] = []
         self.uids = []
-        self.links_col: LineCollection = LineCollection([])
+        self.links_col: LineCollection = LineCollection([], linewidth=2)
         self.annotations: list[Text] = []
 
         self.matrix_view = None
@@ -252,9 +252,9 @@ class PlayGround:
         self.fig = plt.figure(constrained_layout=True)
 
         m_type_to_title = {
-            MatrixType.texture: "Textura (M)",
-            MatrixType.geometry: "Geometria (B)",
-            MatrixType.topology: "Topologia (T)",
+            MatrixType.texture: "Texture (M)",
+            MatrixType.geometry: "Geometry (B)",
+            MatrixType.topology: "Topology (T)",
         }
 
         self.fig.suptitle(m_type_to_title[matrix_type])
