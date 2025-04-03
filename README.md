@@ -18,7 +18,8 @@ calculator for you. In the following example, all tools are calculated for a lis
 for every grid element of the grid created, and the resulting texture is shown. 
 ```python
 import matplotlib.pyplot as plt
-from texture import calculators, links, grids, display
+import grids
+from texture import calculators, links, display
 
 # suppose i've loaded frames1 and frames2 here
 
