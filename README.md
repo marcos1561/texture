@@ -41,7 +41,7 @@ plt.show()
 ## Playground
 The playground is an application to play with the texture and its derivatives in an interactive way. It consists
 of two frames, where the user can add points clicking with the mouse, or move existing points also with the mouse. At each frame,
-links will be calculated on the fly and the respective selected quantity (M, B or T) will be shown at the frame as an ellipse.
+links will be calculated on the fly and the respective selected quantity (M, B or T) will be shown on the frame as an ellipse.
 
 The fallowing example initializes the playground with some points in both frames, configured to show the topological derivative:
 
