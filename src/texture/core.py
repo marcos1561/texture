@@ -1,7 +1,8 @@
 import numpy as np
 from numba import guvectorize
 
-from texture.grids import RegularGrid
+# from texture.grids import RegularGrid
+from grids import RegularGrid
 from texture import grids_mathieu
 from texture.links import *
 
@@ -329,8 +330,8 @@ def bin_geometrical_changes_sum(points_0: np.ndarray, points_1: np.ndarray, link
     coords_0 = grid.coords(texture_points_0)
     coords_1 = grid.coords(texture_points_1)
 
-    sum_C = np.zeros_like(C, shape=grid.shape + C.shape[1:])
-    count = np.zeros(grid.shape, int)
+    sum_C = np.zeros_like(C, shape=grid.shape_mpl + C.shape[1:])
+    count = np.zeros(grid.shape_mpl, int)
 
     for idx in range(points_per_link):
         c0, c1 = coords_0[idx], coords_1[idx]
@@ -590,7 +591,7 @@ if __name__ == "__main__":
 
     grid = grids.RegularGrid(
         length=grid_size, height=grid_size,
-        num_cols=5, num_rows=5,
+        num_cols=6, num_rows=5,
     )
 
     # num_cols, num_rows = 5, 6

@@ -7,7 +7,7 @@ Created on Tue Nov 12 14:48:39 2019
 """
 
 from texture.grids import RegularGrid
-from texture._texture import bin_texture, bin_changes, bonds_appeared_disapeared, C2B
+from texture.core import bin_texture, bin_changes, bonds_appeared_disapeared, C2B
 from texture.display import draw_count_2D, draw_matrices, display_pos_edges
 import os
 import trackpy as tp

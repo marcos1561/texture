@@ -23,6 +23,7 @@ dependencies = [
     "scipy",
     "numba",
     "pyyaml",
+    "grids @ git+https://github.com/marcos1561/grids.git"
 ]
 
 [tool.setuptools.packages.find]

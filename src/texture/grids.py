@@ -43,7 +43,7 @@ class RetangularGrid:
 
         # Quantidade de células em cada dimensão, ordenados
         # na forma geralmente utilizada pelo matplotlib
-        self.shape_mpl = (self.shape[1], self.shape[0])
+        self.shape_mpl = tuple(reversed(self.shape[:2])) + self.shape[2:]
         self.shape_mpl_t = tuple(s + 2 for s in self.shape_mpl)
 
         # Centro das células em cada dimensão

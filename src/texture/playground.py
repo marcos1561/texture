@@ -8,8 +8,8 @@ from matplotlib.artist import Artist
 from matplotlib.text import Text
 
 import texture
-from texture.grids import RegularGrid
 import traceback
+from grids import RegularGrid
 
 class Action(Enum):
     add = auto()

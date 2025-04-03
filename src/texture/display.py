@@ -1,10 +1,10 @@
 import numpy as np
+import grids
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.collections import EllipseCollection, LineCollection
 
-from texture import square_from_triangular
-from texture import grids, errors
+from texture import square_from_triangular, errors
 
 def draw_links(ax: Axes, points, links, **kwargs):
     kwargs_default = {'color': 'r'}
@@ -105,7 +105,7 @@ def draw_matrices(ax: Axes, grid: grids.RetangularGrid, matrix: np.ndarray,
     if line_kwargs is None:
         line_kwargs = {}
 
-    mask = np.ones(grid.shape, bool)
+    mask = np.ones(grid.shape_mpl, bool)
 
     # Convert the texture back to an array of matrices
     matrix = square_from_triangular(matrix)

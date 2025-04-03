@@ -1,4 +1,4 @@
-from texture._texture import *
+from texture.core import *
 from numpy.testing import *
 from scipy.spatial import cKDTree as KDTree
 from texture.grids import RegularGrid
